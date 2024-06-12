@@ -78,6 +78,10 @@ export async function readItemFromBucket(
     );
 }
 
+export function deleteItemFromBucket(s3Client: S3Client, bucketName: string, filePath: string): Promise<DeleteObjectCommandOutput> {
+    return s3Client.send(new DeleteObjectCommand({ Bucket: bucketName, Key: filePath }));
+}
+
 export async function main() {
   
 

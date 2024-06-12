@@ -1,6 +1,6 @@
 import { envs } from "@/config/env";
 import { client } from "@/config/s3"
-import { createBucket, deleteBucket, putItemInBucket } from "@/utils"
+import { createBucket, deleteBucket, deleteItemFromBucket, putItemInBucket } from "@/utils"
 import { randomUUID } from "crypto";
 import express from "express"
 const router = express.Router()
@@ -11,6 +11,54 @@ router.post("", async (req, res) => {
     const bucketName = S3_BUCKET
     const { fileList }: { fileList: string[] } = req.body
 
+    const responseList = fileList.map(async (fileContent) => {
+        
+        const fileName = randomUUID() + ".jpg"
+        const filePath = S3_IMAGE_DIR_PATH + fileName
+        const encodedFilePath = encodeURIComponent(filePath)
+        const decodedContent = Buffer.from(fileContent, "base64")
+        
+        return {
+            bucketName,
+            encodedFilePath,
+            response: putItemInBucket(
+                client,
+                bucketName,
+                filePath,
+                decodedContent
+            )
+        }
+    })
+
+    const uriList = await Promise.all(responseList)
+                    .then(responses => responses.map(({ bucketName, encodedFilePath }) => {
+                        return `https://${bucketName}.s3.amazonaws.com/${encodedFilePath}`;
+                    }))
+    console.log(uriList)
+    res.send(uriList)
+})
+
+router.put("", async (req, res) => {
+    const bucketName = S3_BUCKET
+    const { fileList, oldList }: { fileList: string[], oldList: string[] } = req.body
+
+    oldList.forEach(async (uri) => {
+        
+        const fileName = uri.split("/").pop()
+        const filePath = S3_IMAGE_DIR_PATH + fileName
+        const encodedFilePath = encodeURIComponent(filePath)
+        
+        return {
+            bucketName,
+            encodedFilePath,
+            response: deleteItemFromBucket(
+                client,
+                bucketName,
+                filePath
+            )
+        }
+    })
+    
     const responseList = fileList.map(async (fileContent) => {
         
         const fileName = randomUUID() + ".jpg"
