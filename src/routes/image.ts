@@ -47,41 +47,44 @@ router.put("", async (req, res) => {
         const fileName = uri.split("/").pop()
         const filePath = S3_IMAGE_DIR_PATH + fileName
         const encodedFilePath = encodeURIComponent(filePath)
-        
-        return {
-            bucketName,
-            encodedFilePath,
-            response: deleteItemFromBucket(
+        if (!fileList.includes(uri)) {
+            await deleteItemFromBucket(
                 client,
                 bucketName,
                 filePath
             )
-        }
+        }  
     })
     
     const responseList = fileList.map(async (fileContent) => {
         
+        if (fileContent.startsWith(`https://${bucketName}.s3.amazonaws.com/`)) {
+            return {
+                bucketName,
+                url: fileContent
+            }
+        }
         const fileName = randomUUID() + ".jpg"
         const filePath = S3_IMAGE_DIR_PATH + fileName
         const encodedFilePath = encodeURIComponent(filePath)
         const decodedContent = Buffer.from(fileContent, "base64")
+        const response = await putItemInBucket(
+            client,
+            bucketName,
+            filePath,
+            decodedContent
+        )
         
         return {
             bucketName,
             encodedFilePath,
-            response: putItemInBucket(
-                client,
-                bucketName,
-                filePath,
-                decodedContent
-            )
+            url: `https://${bucketName}.s3.amazonaws.com/${encodedFilePath}`,
+            response
         }
     })
 
     const uriList = await Promise.all(responseList)
-                    .then(responses => responses.map(({ bucketName, encodedFilePath }) => {
-                        return `https://${bucketName}.s3.amazonaws.com/${encodedFilePath}`;
-                    }))
+                    .then(responses => responses.map(({ url }) => url))
     console.log(uriList)
     res.send(uriList)
 })
