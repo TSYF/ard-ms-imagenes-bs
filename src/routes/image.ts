@@ -46,7 +46,6 @@ router.put("", async (req, res) => {
         
         const fileName = uri.split("/").pop()
         const filePath = S3_IMAGE_DIR_PATH + fileName
-        const encodedFilePath = encodeURIComponent(filePath)
         if (!fileList.includes(uri)) {
             await deleteItemFromBucket(
                 client,
@@ -94,11 +93,24 @@ router.post("/bucket", async (req, res) => {
     const response = await createBucket(client, bucketName);
     res.send(response)
 })
+*/
+router.delete("", async (req, res) => {
+    const bucketName = S3_BUCKET
+    const { uriList }: { uriList: string[] } = req.body
 
-router.delete("/bucket/:name", async (req, res) => {
-    const { name } = req.params;
-    const response = await deleteBucket(client, name)
-    res.send(response)
-}) */
+    const responseList = uriList.map(async (uri) => {
+        const fileName = uri.split("/").pop()
+        const filePath = S3_IMAGE_DIR_PATH + fileName
+        await deleteItemFromBucket(
+            client,
+            bucketName,
+            filePath
+        )
+        return [uri, true]
+    })
 
+    const uriMap = Object.fromEntries(await Promise.all(responseList))
+    console.log(uriMap)
+    res.send(uriMap)
+})
 export default router
